@@ -42,6 +42,15 @@ APIから受け取るデータ（Menu・Category・Order・OrderItem）に対し
 ### 8. シンプルで海外風のUIデザイン
 白・黒・グレーをベースカラーに統一。Tailwind CSSで余白・フォント・アニメーションにこだわり、実在するおしゃれなレストランのデジタルメニューを目指したUIを構築しました。
 
+### 9. Laravel Breeze による管理者ログイン認証
+管理者のログイン・ログアウト機能は **Laravel Breeze** を使って構築しました。BreezeはLaravelが公式に提供している認証のスターターキットで、ログイン・パスワードリセット・認証ガードなどの仕組みをゼロから書かずに導入できます。フロントエンド（Next.js）との認証連携には **Laravel Sanctum**（セッションベース認証）を組み合わせ、`useAuth` カスタムフックで「ログインしていない人は自動でログインページへ飛ばす」処理を実装しています。
+
+### 10. 売上ダッシュボード
+管理者は日付を切り替えながら「日別売上・注文件数・平均単価・料理ランキング・カテゴリ別売上バーチャート」を確認できます。
+ 
+### 11. 会計機能・会計履歴
+テーブルごとに注文内容を確認してワンクリックで会計済みにできます。会計済みの履歴は日付ごとに閲覧できます。
+
 ---
 
 ## Laravel Reverbとは何か（仕組みの理解）
@@ -114,7 +123,6 @@ window.Echo.channel("orders")
 
 ## 苦労した点・学んだこと
 
-> 実装中に実際にハマった問題と解決策を記録しておきます。同じ問題に直面した時のために。
 
 ### 問題1：MySQLが準備できる前にReverbが起動しようとした
 
@@ -244,13 +252,17 @@ QUEUE_CONNECTION=sync  # キューを使わず即座に処理
 | 注文確定 | 1タップで注文。送信中はボタンを無効化して二重送信防止 |
 | リアルタイム通知 | 注文確定と同時にLaravel ReverbでKitchen Displayに通知 |
 | Kitchen Display | テーブル番号・料理名・個数をカード形式で表示 |
-| 提供済み管理 | 料理1品ごとに「SERVE NOW」→「Provided」に変化 |
-| 管理者ログイン | Laravel Sanctum認証。未ログインは自動リダイレクト |
+| 提供済み管理 | 料理1品ごとに「SERVE NOW」→ チェックマークに変化 |
+| 管理者ログイン | Laravel Breeze + Sanctum認証。未ログインは自動リダイレクト |
+| 会計機能 | テーブルごとの注文確認・ワンクリック会計 |
+| 会計履歴 | 日付ナビゲーションで過去の会計履歴を閲覧 |
+| 売上ダッシュボード | 日別売上・注文件数・料理ランキング・カテゴリ別バーチャート |
 
 ---
 
 ## 使用技術
 
+ 
 | カテゴリ | 技術 | 用途 |
 |----------|------|------|
 | フロントエンド | Next.js 14（App Router） | UI・ルーティング |
@@ -261,9 +273,10 @@ QUEUE_CONNECTION=sync  # キューを使わず即座に処理
 | | laravel-echo + pusher-js | WebSocket受信（Reverb対応） |
 | | SWR | 認証ユーザーの取得 |
 | バックエンド | Laravel 12 / PHP 8.4 | REST API・認証・DB操作 |
+| | Laravel Breeze | 管理者認証スターターキット（ログイン・認証ガード） |
 | | Laravel Reverb | WebSocketサーバー（リアルタイム通信） |
-| | Laravel Sanctum | セッションベース認証 |
-| | Laravel Events | OrderCreatedイベントのブロードキャスト |
+| | Laravel Sanctum | セッションベース認証（Next.jsとのAPI連携） |
+| | Laravel Events | OrderCreated / OrderStatusUpdated イベントのブロードキャスト |
 | インフラ・DB | MySQL 8.0 | データ保存 |
 | | Docker / docker-compose | コンテナ環境構築 |
 | | nginx 1.21.1 | リバースプロキシ |
@@ -274,16 +287,16 @@ QUEUE_CONNECTION=sync  # キューを使わず即座に処理
 
 ## データベース設計
 
-### categoriesテーブル
-
+**categoriesテーブル**
+ 
 | カラム名 | 型 | 詳細 |
 |----------|----|------|
 | id | BigInt | プライマリキー |
 | name | string | カテゴリ名（例: ステーキ＆グリル） |
 | display_order | integer | 表示順（デフォルト: 0） |
-
-### menusテーブル
-
+ 
+**menusテーブル**
+ 
 | カラム名 | 型 | 詳細 |
 |----------|----|------|
 | id | BigInt | プライマリキー |
@@ -292,18 +305,19 @@ QUEUE_CONNECTION=sync  # キューを使わず即座に処理
 | description | text | 説明文（ドリンクはフレーバー一覧を記載） |
 | price | integer | 価格（円） |
 | menu_image | string | 画像パス（storage/配下） |
-
-### ordersテーブル
-
+ 
+**ordersテーブル**
+ 
 | カラム名 | 型 | 詳細 |
 |----------|----|------|
 | id | BigInt | プライマリキー |
 | table_number | string | テーブル番号（URLのパラメータ） |
 | status | string | pending / cooking / served / paid |
 | total_price | integer | 合計金額（null許容） |
-
-### order_itemsテーブル
-
+| paid_at | timestamp | 会計日時（null許容） |
+ 
+**order_itemsテーブル**
+ 
 | カラム名 | 型 | 詳細 |
 |----------|----|------|
 | id | BigInt | プライマリキー |
@@ -313,15 +327,16 @@ QUEUE_CONNECTION=sync  # キューを使わず即座に処理
 | price | integer | 注文時の単価 |
 | option | string | フレーバー等（null許容） |
 | status | string | pending / cooking / served（デフォルト: pending） |
-
-### usersテーブル（管理者のみ）
-
+ 
+**usersテーブル（管理者のみ）**
+ 
 | カラム名 | 型 | 詳細 |
 |----------|----|------|
 | id | BigInt | プライマリキー |
 | name | string | 氏名 |
 | email | string | メールアドレス（Unique） |
 | password | string | パスワード（Hash） |
+ 
 
 ---
 
@@ -341,7 +356,7 @@ storeOrder/
 │   │   │   └── OrderStatusUpdated.php    # 提供済みイベント（Reverbブロードキャスト）
 │   │   ├── Http/Controllers/
 │   │   │   ├── OrderController.php       # 注文作成・履歴取得
-│   │   │   └── AdminOrderController.php  # 管理者用注文・ステータス更新
+│   │   │   └── AdminOrderController.php  # 管理者用注文・ステータス更新・売上・会計
 │   │   └── Models/
 │   │       ├── Order.php
 │   │       ├── OrderItem.php
@@ -354,7 +369,11 @@ storeOrder/
         ├── app/
         │   ├── page.tsx                    # トップページ（スライドショー）
         │   ├── login/page.tsx              # 管理者ログイン
-        │   ├── admin/orders/page.tsx       # Kitchen Display（管理者）
+        │   ├── admin/
+        │   │   ├── orders/page.tsx         # Kitchen Display（管理者）
+        │   │   ├── sales/page.tsx          # 売上ダッシュボード
+        │   │   ├── history/page.tsx        # 会計履歴
+        │   │   └── checkout/[tableId]/page.tsx  # 会計画面
         │   └── table/[id]/
         │       ├── page.tsx                # メニュー一覧（お客）
         │       ├── cart/page.tsx           # カート（お客）
@@ -387,8 +406,8 @@ storeOrder/
 ### 手順1 : リポジトリをクローン
 
 ```bash
-git clone <リポジトリURL>
-cd storeOrder
+git clone git@github.com:ando625/QROrder.git
+cd QROrder
 ```
 
 ---

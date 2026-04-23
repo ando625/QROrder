@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState,useCallback } from "react";
 import axios from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
 import "@/lib/echo";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Order } from "@/types"; // 🌟 型をインポート
+import { Order, OrderItem } from "@/types"; // 🌟 型をインポート
 import { Clock, History, Receipt } from "lucide-react"; // アイコンを追加
 
 const TABLE_COUNT = 12;
@@ -15,16 +15,16 @@ export default function AdminOrdersPage() {
   const { user } = useAuth({ middleware: "auth" });
   const [orders, setOrders] = useState<Order[]>([]); // 🌟 Order[] 型に変更
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const res = await axios.get("/api/admin/orders");
       setOrders(res.data);
     } catch (err) {
       console.error("注文の取得に失敗しました", err);
     }
-  };
+  }, []);
 
-  const updateStatus = async (itemId: number, newStatus: string) => {
+  const updateStatus = useCallback(async (itemId: number, newStatus: string) => {
     try {
       await axios.patch(`/api/admin/order-items/${itemId}/status`, {
         status: newStatus,
@@ -33,7 +33,7 @@ export default function AdminOrdersPage() {
     } catch (err) {
       alert("更新に失敗しました");
     }
-  };
+  }, [fetchOrders]);
 
   useEffect(() => {
     fetchOrders();
@@ -59,7 +59,7 @@ export default function AdminOrdersPage() {
       });
   };
 
-  const getSortedItems = (items: any[]) => {
+  const getSortedItems = (items: OrderItem[]) => {
     return [...items].sort((a, b) => {
       if (a.status === "served" && b.status !== "served") return 1;
       if (a.status !== "served" && b.status === "served") return -1;

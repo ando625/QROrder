@@ -45,7 +45,7 @@ class Order extends Model
     public function getStatusLabelAttribute()
     {
         $labels = self::getStatusLabels();
-        // 🌟 Order側も安全に取得するように修正
+        // Order側も安全に取得するように修正
         return $labels[$this->status] ?? '不明';
     }
 

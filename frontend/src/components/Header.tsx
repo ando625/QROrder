@@ -4,10 +4,21 @@ import { ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import { useState, useEffect } from "react";
 
 
 export default function Header() {
   const { cartItems } = useCart();
+
+  //「ブラウザで表示準備できたか？」フラグ
+  const [mounted, setMounted] = useState(false);
+
+  //ブラウザで動き出したらtrueにする
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  
 
   // カートに入ってる商品の個数を足し合わせる
   const totalCount = cartItems.reduce(
@@ -44,7 +55,7 @@ export default function Header() {
                 strokeWidth={1.5}
                 className="text-black"
               />
-              {totalCount > 0 && (
+              {mounted && totalCount > 0 && (
                 <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
                   {totalCount}
                 </span>

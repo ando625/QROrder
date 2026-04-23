@@ -1,7 +1,7 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import { useParams } from "next/navigation";
 
@@ -10,9 +10,16 @@ import { useParams } from "next/navigation";
 export default function CartPage() {
   const { cartItems, updateQuantity, removeFromCart, totalPrice,clearCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const params = useParams();
   const tableId = params.id as string;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   if (cartItems.length === 0) return <p className="p-8">カートは空です。</p>;
 

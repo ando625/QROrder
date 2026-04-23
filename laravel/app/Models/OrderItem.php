@@ -36,7 +36,7 @@ class OrderItem extends Model
     {
         $labels = self::getStatusLabels();
 
-        // 🌟 statusがセットされているか、かつラベルの中に存在するかチェック
+        // statusがセットされているか、かつラベルの中に存在するかチェック
         if (isset($this->status) && array_key_exists($this->status, $labels)) {
             return $labels[$this->status];
         }

@@ -41,9 +41,10 @@ export interface Order {
 export interface OrderItem {
   id?: number;
   order_id?: number; //どの注文に属するか
-  menu_id: number;   //料理のID
-  quantity: number;  //個数
-  price: number;     //注文時の単価
+  menu_id: number; //料理のID
+  quantity: number; //個数
+  price: number; //注文時の単価
   option: string | null; //選んだフレーバー
   menu?: Menu;
+  status?: "pending" | "cooking" | "served";
 }

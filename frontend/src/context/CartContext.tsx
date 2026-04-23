@@ -30,7 +30,25 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   
   //今のカートの中身
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    // サーバー側では動かないのでブラウザ判定が必要
+    if (typeof window === "undefined") return [];
+
+    try {
+      const saved = localStorage.getItem("cart"); // 「cartという名前で保存したデータ頂戴」
+      return saved ? JSON.parse(saved) : []; // あれば復元、なければ空配列
+    } catch {
+      return []; // 万が一壊れたデータでもエラーにならないように
+    }
+  });
+
+  // cartItemsが変わるたびにlocalStorageに保存する リロードしてもカートの中身が消えないように
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cartItems));
+    // ↑ 「cartという名前で、cartItemsをJSON文字列にして保存して」
+  }, [cartItems]);
+  // ↑ [cartItems] = cartItemsが変わるたびに実行する
+
 
   //カートを空にする関数
   const clearCart = () => {
