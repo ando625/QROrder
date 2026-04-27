@@ -23,7 +23,7 @@ frontend/.turbo/
 # ========================================
 laravel/vendor/
 laravel/storage/logs/*.log
-laravel/storage/app/public/
+
 laravel/bootstrap/cache/*.php
 
 
