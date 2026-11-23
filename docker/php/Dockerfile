@@ -1,4 +1,4 @@
-FROM php:8.5-fpm
+FROM php:8.6-fpm
 
 # 設定ファイルをコピー
 COPY php.ini /usr/local/etc/php/
